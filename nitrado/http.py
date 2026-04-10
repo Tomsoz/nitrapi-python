@@ -5,13 +5,17 @@ import json
 import sys
 import time
 from dataclasses import dataclass
-from typing import Any, ClassVar, Dict, Generic, Mapping, Optional, TypeVar
+from typing import TYPE_CHECKING, Any, ClassVar, Dict, Generic, Mapping, Optional, TypeVar
 
 import aiohttp
 from aiohttp import ClientResponse
 from urllib.parse import quote
 
 TData = TypeVar('TData')
+
+if TYPE_CHECKING:
+    from .globals import GlobalAPI
+    from .registration import RegistrationAPI
 
 class NitradoRateLimitExceeded(Exception):
     """Raised when the API keeps returning HTTP 429 after automatic backoff."""
@@ -127,11 +131,29 @@ class HTTPClient:
         self.user_agent = user_agent.format(sys.version_info, aiohttp.__version__)
 
         self.token: Optional[str] = None
+        self._globals_api: Optional['GlobalAPI'] = None
+        self._registration_api: Optional['RegistrationAPI'] = None
 
         self._request_lock = asyncio.Lock()
         self._rate_limit_limit: Optional[int] = None
         self._rate_limit_remaining: Optional[int] = None
         self._rate_limit_reset_epoch: Optional[float] = None
+
+    @property
+    def globals(self) -> 'GlobalAPI':
+        if self._globals_api is None:
+            from .globals import GlobalAPI
+
+            self._globals_api = GlobalAPI(self)
+        return self._globals_api
+
+    @property
+    def registration(self) -> 'RegistrationAPI':
+        if self._registration_api is None:
+            from .registration import RegistrationAPI
+
+            self._registration_api = RegistrationAPI(self)
+        return self._registration_api
 
     @property
     def rate_limit_limit(self) -> Optional[int]:
@@ -272,22 +294,45 @@ class HTTPClient:
 
                     return NitrapiResponse.from_payload(body, http_status=resp.status)
 
-    ###########################################################
-    # GLOBAL
-    ###########################################################
+    # Backward-compatible shortcuts. Prefer grouped APIs like ``http.globals.version()``
+    # and ``http.registration.register()`` for better organization.
+    async def health(self) -> Any:
+        return await self.globals.health()
 
-    async def health(self) -> HealthResponse:
-        return HealthResponse.from_nitrapi(await self.request(Route('GET', '/ping')))
+    async def maintenance(self) -> Any:
+        return await self.globals.maintenance()
 
-    async def maintenance(self) -> MaintenanceResponse:
-        return MaintenanceResponse.from_nitrapi(await self.request(Route('GET', '/maintenance')))
-    
-    async def version(self) -> APIVersion:
-        return APIVersion.from_nitrapi(await self.request(Route('GET', '/version')))
+    async def version(self) -> Any:
+        return await self.globals.version()
 
+    async def register(
+        self,
+        client_id: str,
+        client_secret: str,
+        recaptcha: Optional[str],
+        username: Optional[str],
+        email: str,
+        password: str,
+        currency: str = 'EUR',
+        language: str = 'deu',
+        timezone: str = 'Europe/Berlin',
+        consent_newsletter: bool = False,
+    ) -> Any:
+        return await self.registration.register(
+            client_id=client_id,
+            client_secret=client_secret,
+            recaptcha=recaptcha,
+            username=username,
+            email=email,
+            password=password,
+            currency=currency,
+            language=language,
+            timezone=timezone,
+            consent_newsletter=consent_newsletter,
+        )
 
+    async def activate(self, code: str, uuid: str) -> Any:
+        return await self.registration.activate(code=code, uuid=uuid)
 
-from .oauth.sub_token import SubToken
-from .globals.version import APIVersion
-from .globals.health import HealthResponse
-from .globals.maintenance import MaintenanceResponse
+    async def recaptcha(self) -> Any:
+        return await self.registration.recaptcha()

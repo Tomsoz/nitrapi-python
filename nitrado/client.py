@@ -3,12 +3,23 @@ from __future__ import annotations
 from .http import HTTPClient
 
 
+class Nitrado(HTTPClient):
+    """Primary Nitrapi client.
+
+    Use this for a reusable client instance with grouped APIs such as
+    ``client.globals`` and ``client.registration``.
+    """
+
+
+NitradoClient = Nitrado
+
+
 class Client:
     """Authenticated Nitrapi API access.
 
     Instance methods are for routes that require a bearer token. Pass the same
-    :class:`~nitrado.http.HTTPClient` you use for the app lifetime; this object
-    sets ``client.token`` for you.
+    :class:`Nitrado` instance you use for the app lifetime; this object sets
+    ``client.token`` for you.
 
     Unauthenticated endpoints belong on :class:`~nitrado.globals.Global` instead.
     """

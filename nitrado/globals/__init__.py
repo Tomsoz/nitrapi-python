@@ -1,18 +1,19 @@
-"""Unauthenticated Nitrapi endpoints and their response types."""
+"""Unauthenticated Nitrapi endpoints and response types."""
 
 from __future__ import annotations
 
-import asyncio
 from typing import TYPE_CHECKING, Any
 
 from .health import HealthResponse
 from .version import APIVersion
 
 if TYPE_CHECKING:
+    from ..http import HTTPClient
     from .maintenance import MaintenanceResponse
 
 __all__ = [
     'Global',
+    'GlobalAPI',
     'MaintenanceResponse',
     'HealthResponse',
     'APIVersion',
@@ -27,31 +28,51 @@ def __getattr__(name: str) -> Any:
     raise AttributeError(f'module {__name__!r} has no attribute {name!r}')
 
 
+class GlobalAPI:
+    """Public (unauthenticated) Nitrapi endpoints bound to one HTTP transport."""
+
+    __slots__ = ('_http',)
+
+    def __init__(self, http: 'HTTPClient') -> None:
+        self._http = http
+
+    async def health(self) -> HealthResponse:
+        return HealthResponse.from_nitrapi(await self._http.request(Route('GET', '/ping')))
+
+    async def maintenance(self) -> MaintenanceResponse:
+        return MaintenanceResponse.from_nitrapi(await self._http.request(Route('GET', '/maintenance')))
+
+    async def version(self) -> APIVersion:
+        return APIVersion.from_nitrapi(await self._http.request(Route('GET', '/version')))
+
+
 class Global:
-    """Public (unauthenticated) Nitrapi endpoints.
+    """One-shot convenience wrapper for public Nitrapi endpoints.
 
-    Each method opens its own :class:`~nitrado.http.HTTPClient` for that call.
-
-    For bearer-token routes, use :class:`~nitrado.client.Client` instead.
+    For connection reuse and shared rate-limit state, prefer
+    ``Nitrado().globals`` over these class methods.
     """
 
     @classmethod
     async def health(cls) -> HealthResponse:
         from ..http import HTTPClient
 
-        async with HTTPClient() as client:
-            return await client.health()
+        async with HTTPClient() as http:
+            return await http.globals.health()
 
     @classmethod
     async def maintenance(cls) -> MaintenanceResponse:
         from ..http import HTTPClient
 
-        async with HTTPClient() as client:
-            return await client.maintenance()
+        async with HTTPClient() as http:
+            return await http.globals.maintenance()
 
     @classmethod
     async def version(cls) -> APIVersion:
         from ..http import HTTPClient
 
-        async with HTTPClient() as client:
-            return await client.version()
+        async with HTTPClient() as http:
+            return await http.globals.version()
+
+
+from ..http import Route

@@ -22,9 +22,26 @@ class MaintenanceResponse:
         inner = raw.get('maintenance')
         if not isinstance(inner, dict):
             raise NitradoHTTPError('Maintenance response missing "data.maintenance"')
+
+        cloud_backend = inner.get('cloud_backend')
+        if not isinstance(cloud_backend, bool):
+            raise NitradoHTTPError('Maintenance response missing or invalid "data.maintenance.cloud_backend"')
+
+        domain_backend = inner.get('domain_backend')
+        if not isinstance(domain_backend, bool):
+            raise NitradoHTTPError('Maintenance response missing or invalid "data.maintenance.domain_backend"')
+
+        dns_backend = inner.get('dns_backend')
+        if not isinstance(dns_backend, bool):
+            raise NitradoHTTPError('Maintenance response missing or invalid "data.maintenance.dns_backend"')
+
+        pmacct_backend = inner.get('pmacct_backend')
+        if not isinstance(pmacct_backend, bool):
+            raise NitradoHTTPError('Maintenance response missing or invalid "data.maintenance.pmacct_backend"')
+
         return cls(
-            cloud_backend=inner.get("cloud_backend"),
-            domain_backend=inner.get("domain_backend"),
-            dns_backend=inner.get("dns_backend"),
-            pmacct_backend=inner.get("pmacct_backend")
+            cloud_backend=cloud_backend,
+            domain_backend=domain_backend,
+            dns_backend=dns_backend,
+            pmacct_backend=pmacct_backend,
         )
